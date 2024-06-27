@@ -11,6 +11,20 @@ rm -rf app/build/distributions
 
 ./gradlew build
 
+#!/bin/bash
+
+# Run the gradle build command
+./gradlew build
+
+# Check if the command was successful
+if [ $? -ne 0 ]; then
+  echo "Build failed"
+  exit 1
+else
+  echo "Build succeeded"
+fi
+
+
 cd app/build/distributions
 unzip app.zip
 

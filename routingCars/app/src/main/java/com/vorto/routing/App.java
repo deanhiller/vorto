@@ -6,6 +6,9 @@ package com.vorto.routing;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -17,8 +20,141 @@ public class App {
     }
 
     public static void main(String[] args) {
-        List<String> list = Arrays.asList(args);
-        log.info("list="+list);
-        System.out.println("something");
+        try {
+            if (args.length != 1)
+                throw new IllegalArgumentException("Takes exactly one arg, the filename");
+
+            List<String> list = Arrays.asList(args);
+            log.info("list=" + list);
+            log.info("userdir=" + System.getProperty("user.dir"));
+            System.out.println("something");
+
+
+
+            new App().start(args[0]);
+        } catch (Exception e) {
+            log.error("exception", e);
+            throw e;
+        }
+    }
+
+    private void start(String arg) {
+        List<PickupDropoff> locations = readInLocations(arg);
+        //list of list vs. array of arrays - toString works better on list in java
+        MyMatrix<Double> distances = calculateAll(locations);
+
+    }
+
+    private MyMatrix<Double> calculateAll(List<PickupDropoff> locations) {
+        //Example best here.
+        //Matrix location 0, 1 will be
+        //      distance between loadNumber=0 and loadNumber 1's PICKUP location
+        //      PLUS distance from pickup to dropoff
+        //Matricx location 1, 0 will be
+        //      distance between loadNumber 1's DROPOFF location and loadNumber=0 and
+        //key difference is using pickup vs. dropoff below
+
+        MyMatrix<Double> myMatrix = new MyMatrix<>(new Double[locations.size()][locations.size()]);
+
+        for(int n = 0; n < locations.size(); n++) {
+            for(int m = 0; m < locations.size(); m++) {
+                PickupDropoff loc1 = locations.get(n);
+                PickupDropoff loc2 = locations.get(m);
+                myMatrix.set(n, m, calculateDropoffToPickupPlusDriveAfter(loc1, loc2));
+                myMatrix.set(m, n, calculateDropoffToNextPickup(loc2, loc1));
+            }
+        }
+
+        log.info("myMatrix=\n"+myMatrix);
+        return null;
+    }
+
+    private Double calculateDropoffToPickupPlusDriveAfter(PickupDropoff previous, PickupDropoff next) {
+        Double timeToPickup = calculateDropoffToNextPickup(previous, next);
+
+        //validate first then this...
+        //Double timeInRoute = calcDistance()
+
+        return timeToPickup;
+    }
+
+    private Double calculateDropoffToNextPickup(PickupDropoff previous, PickupDropoff next) {
+        GeoLocation dropoff = previous.getDropoff();
+        GeoLocation pickup = next.getPickup();
+        return calcDistance(dropoff, pickup);
+    }
+
+    private double calcDistance(GeoLocation dropoff, GeoLocation pickup) {
+        //sqrt((x2-x1)^2 + (y2-y1)^2)
+        double x = pickup.getLatitude() - dropoff.getLatitude();
+        double y = pickup.getLongitude() - dropoff.getLongitude();
+        return Math.sqrt(x*x + y*x);
+    }
+
+    private List<PickupDropoff> readInLocations(String arg) {
+        BufferedReader reader;
+
+        //if file was a large enough(really large!), could run 4 threads to read the file in starting at different locations
+        List<PickupDropoff> locations = new ArrayList<>();
+
+        try {
+            reader = new BufferedReader(new FileReader(arg));
+            String line = reader.readLine();
+            //discard this line which is the title
+
+            //add start location ->
+            PickupDropoff baseLocation = new PickupDropoff();
+            baseLocation.setLoadNumber(0);
+            baseLocation.setDropoff(new GeoLocation());
+            baseLocation.setPickup(new GeoLocation());
+            locations.add(baseLocation);
+
+            while (line != null) {
+                // read next line
+                line = reader.readLine();
+
+                if(line != null) {
+                    PickupDropoff location = convertLine(line);
+                    locations.add(location);
+                    log.info("location=" + location);
+                }
+            }
+
+            reader.close();
+        } catch (IOException e) {
+            throw new RuntimeException("Error reading file", e);
+        }
+        return locations;
+    }
+
+    private PickupDropoff convertLine(String line) {
+        try {
+            //assuming delimted by whitespace here
+            String[] split = line.split("\\s+");
+            PickupDropoff loc = new PickupDropoff();
+            Integer loadNum = Integer.parseInt(split[0]);
+            loc.setLoadNumber(loadNum);
+
+            GeoLocation pickup = convertGeo(split[1]);
+            GeoLocation dropoff = convertGeo(split[2]);
+            loc.setPickup(pickup);
+            loc.setDropoff(dropoff);
+
+            return loc;
+        } catch (RuntimeException e) {
+            //for easy debugging on line failures...
+            throw new RuntimeException("Could not convert line="+line, e);
+        }
+    }
+
+    private GeoLocation convertGeo(String s) {
+        GeoLocation geo = new GeoLocation();
+        String substring = s.substring(1, s.length() - 1);
+        String[] split = substring.split(",");
+        double lat = Double.parseDouble(split[0]);
+        geo.setLatitude(lat);
+        double longitude = Double.parseDouble(split[1]);
+        geo.setLongitude(longitude);
+        return geo;
     }
 }
