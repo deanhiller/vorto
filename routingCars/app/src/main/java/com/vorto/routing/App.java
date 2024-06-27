@@ -15,23 +15,19 @@ import java.util.List;
 
 public class App {
     private static final Logger log = LoggerFactory.getLogger(App.class.getName());
-    public String getGreeting() {
-        return "Hello World!";
-    }
 
     public static void main(String[] args) {
         try {
-            if (args.length != 1)
-                throw new IllegalArgumentException("Takes exactly one arg, the filename");
+//            if (args.length != 1)
+//                throw new IllegalArgumentException("Takes exactly one arg, the filename");
 
             List<String> list = Arrays.asList(args);
             log.info("list=" + list);
             log.info("userdir=" + System.getProperty("user.dir"));
             System.out.println("something");
 
-
-
-            new App().start(args[0]);
+            new App().start("../eng-challenge/trainingProblems/problem1.txt");
+            //new App().start(args[0]);
         } catch (Exception e) {
             log.error("exception", e);
             throw e;
@@ -47,12 +43,12 @@ public class App {
 
     private MyMatrix<Double> calculateAll(List<PickupDropoff> locations) {
         //Example best here.
-        //Matrix location 0, 1 will be
-        //      distance between loadNumber=0 and loadNumber 1's PICKUP location
-        //      PLUS distance from pickup to dropoff
-        //Matricx location 1, 0 will be
-        //      distance between loadNumber 1's DROPOFF location and loadNumber=0 and
-        //key difference is using pickup vs. dropoff below
+        //Matrix location 1, 2 will be
+        //      distance between loadNumber 1's dropoff location and loadNumber 2's pickup location
+        //Matricx location 2, 1 will be
+        //      distance between loadNumber 2's dropoff location and loadNumber 1's pickup location
+        //Matrix location 1, 1 will be
+        //      distance of the actual route pickup to dropoff for location 1
 
         MyMatrix<Double> myMatrix = new MyMatrix<>(new Double[locations.size()][locations.size()]);
 
@@ -60,22 +56,19 @@ public class App {
             for(int m = 0; m < locations.size(); m++) {
                 PickupDropoff loc1 = locations.get(n);
                 PickupDropoff loc2 = locations.get(m);
-                myMatrix.set(n, m, calculateDropoffToPickupPlusDriveAfter(loc1, loc2));
-                myMatrix.set(m, n, calculateDropoffToNextPickup(loc2, loc1));
+                Double distance1 = calculateDropoffToNextPickup(loc1, loc2);
+                myMatrix.set(n, m, distance1);
+
+                if(n == m)
+                    continue; // no sense in repeating ourself here since loc1 and loc2 are the same location
+
+                Double distance2 = calculateDropoffToNextPickup(loc2, loc1);
+                myMatrix.set(m, n, distance2);
             }
         }
 
         log.info("myMatrix=\n"+myMatrix);
         return null;
-    }
-
-    private Double calculateDropoffToPickupPlusDriveAfter(PickupDropoff previous, PickupDropoff next) {
-        Double timeToPickup = calculateDropoffToNextPickup(previous, next);
-
-        //validate first then this...
-        //Double timeInRoute = calcDistance()
-
-        return timeToPickup;
     }
 
     private Double calculateDropoffToNextPickup(PickupDropoff previous, PickupDropoff next) {
@@ -88,7 +81,7 @@ public class App {
         //sqrt((x2-x1)^2 + (y2-y1)^2)
         double x = pickup.getLatitude() - dropoff.getLatitude();
         double y = pickup.getLongitude() - dropoff.getLongitude();
-        return Math.sqrt(x*x + y*x);
+        return Math.sqrt(x*x + y*y);
     }
 
     private List<PickupDropoff> readInLocations(String arg) {
