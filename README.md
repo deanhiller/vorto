@@ -1,5 +1,15 @@
 # vorto
 
+Rather than be stuck in analysis paralysis, I am launching with a KISS based somewhat on the code found here https://medium.com/@writingforara/solving-vehicle-routing-problems-with-python-heuristics-algorithm-2cc57fe7079c
+
+HOWEVER with modifications accounting for differences due to time limits and pickup/dropoff all noted with comments in the code
+
+I am starting with nearest neighbor and depending on time can use the further optimization of two_opt.
+
+this code is all single threaded and I wonder if there are locactions that could be multi-threaded or multi-server to yield quicker outputs 
+
+I have to balance this interview with 2 other take homes and other things on my plate so I am debating here how much effort to put in.  ie. risk vs. reward here.  Not sure the reward is big enough to go through this process at this point in time (just thinking out loud and being honest) though the problem is super fun.   I am just a bit busy and did not realize it was going to be this intense.
+
 explored links
 https://logvrp.com/logvrpsite/en/vrp.types.algorithms.html
 https://www.mdpi.com/2076-3417/11/21/10295

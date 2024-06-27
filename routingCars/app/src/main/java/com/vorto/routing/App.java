@@ -6,39 +6,93 @@ package com.vorto.routing;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.BufferedReader;
-import java.io.FileReader;
-import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 
 public class App {
     private static final Logger log = LoggerFactory.getLogger(App.class.getName());
 
+    private ReadStuff readStuff = new ReadStuff();
+    private CalculateBest calculateBest = new CalculateBest();
+
     public static void main(String[] args) {
         try {
-//            if (args.length != 1)
-//                throw new IllegalArgumentException("Takes exactly one arg, the filename");
+            if (args.length != 1)
+                throw new IllegalArgumentException("Takes exactly one arg, the filename");
 
             List<String> list = Arrays.asList(args);
             log.info("list=" + list);
             log.info("userdir=" + System.getProperty("user.dir"));
-            System.out.println("something");
 
-            new App().start("../eng-challenge/trainingProblems/problem1.txt");
-            //new App().start(args[0]);
+            //new App().start("../eng-challenge/trainingProblems/problem1.txt");
+            new App().start(args[0]);
         } catch (Exception e) {
             log.error("exception", e);
-            throw e;
+            throw new RuntimeException(e);
         }
     }
 
-    private void start(String arg) {
-        List<PickupDropoff> locations = readInLocations(arg);
-        //list of list vs. array of arrays - toString works better on list in java
+    private void start(String arg) throws ExecutionException, InterruptedException {
+        List<PickupDropoff> locations = readStuff.readInLocations(arg);
+        //created MyMatrix so I could use toString to pretty print for debugging
         MyMatrix<Double> distances = calculateAll(locations);
 
+        //for now, brute force different number of driver calculations HOWEVER
+        //do this in multiple threads/servers so they come back with an answer at the same time
+        Solution routes = calculateBest.routes(distances);
+        outputSolution(routes);
+    }
+
+    private void outputSolution(Solution solution) {
+        Double totalCost = 500.0 * solution.getRoutes().size();
+
+        //validating out cost of location 0 to location 2 back to location 0 which was 288.46
+        //to pickup sqrt((0-73)^2+(0--86)^2)+
+        //to dropoff sqrt((-116-73)^2+(76--86)^2)+  GRRR, wrong -> sqrt((-57-73)^2+(28--86)^2)
+        // to home sqrt((-57-0)^2+(28-0)^2) GRRR, wrong ->
+        //sqrt((0-73)^2+(0--86)^2)+sqrt((-116-73)^2+(76--86)^2)+sqrt((0--116)^2+(0-76)^2) - GRRR, this was wrong
+        //fixed -> sqrt((0-73)^2+(0--86)^2)+sqrt((-57-73)^2+(28--86)^2)+sqrt((-57-0)^2+(28-0)^2)
+        //cost is 500.4 (I rounded so just need to be close here)...I am off, go fix that
+        //
+        //looking at our matrix, we have 113(to pickup) + 174(the route) + 64(go home) = 351 (not 500)
+        //
+        //and our program output a cost of 288.
+        //
+        //LMAO. so 3 values mismatched however to pickup + route = 287 so we forgot the go home path there.
+        //This is fixed. we get 352(rounding errors as I cheat a bit)
+        //
+        //next re-validate matrix vs. my 113, 174, 64.  1st one right, both of the others are off.
+        //my formula now is 113, 173, 63.5 so we match the values
+        //
+        //total cost 349.   logs show 352.8 (rounding errors of course)
+
+        for(int i = 0; i < solution.getRoutes().size(); i++) {
+            List<Integer> route = solution.getRoutes().get(i);
+            Double cost = solution.getRouteCosts().get(i);
+            totalCost += cost;
+            String myLine = printList(route);
+            log.info("myLine="+myLine+" routeCost="+cost);
+            System.out.println(myLine);
+        }
+
+        log.info("TOTAL cost="+totalCost);
+    }
+
+    public String printList(List<Integer> list) {
+        // Use StringBuilder for efficient string concatenation
+        StringBuilder sb = new StringBuilder();
+        sb.append("[");
+
+        for (int i = 0; i < list.size(); i++) {
+            sb.append(list.get(i));
+            if (i < list.size() - 1) {
+                sb.append(", ");
+            }
+        }
+
+        sb.append("]");
+        return sb.toString();
     }
 
     private MyMatrix<Double> calculateAll(List<PickupDropoff> locations) {
@@ -53,7 +107,9 @@ public class App {
         MyMatrix<Double> myMatrix = new MyMatrix<>(new Double[locations.size()][locations.size()]);
 
         for(int n = 0; n < locations.size(); n++) {
-            for(int m = 0; m < locations.size(); m++) {
+            //since we are a square, we can access all locations a bit fast by not reading the entire
+            //row each time...
+            for(int m = 0; m <= n; m++) {
                 PickupDropoff loc1 = locations.get(n);
                 PickupDropoff loc2 = locations.get(m);
                 Double distance1 = calculateDropoffToNextPickup(loc1, loc2);
@@ -68,7 +124,7 @@ public class App {
         }
 
         log.info("myMatrix=\n"+myMatrix);
-        return null;
+        return myMatrix;
     }
 
     private Double calculateDropoffToNextPickup(PickupDropoff previous, PickupDropoff next) {
@@ -84,70 +140,5 @@ public class App {
         return Math.sqrt(x*x + y*y);
     }
 
-    private List<PickupDropoff> readInLocations(String arg) {
-        BufferedReader reader;
 
-        //if file was a large enough(really large!), could run 4 threads to read the file in starting at different locations
-        List<PickupDropoff> locations = new ArrayList<>();
-
-        try {
-            reader = new BufferedReader(new FileReader(arg));
-            String line = reader.readLine();
-            //discard this line which is the title
-
-            //add start location ->
-            PickupDropoff baseLocation = new PickupDropoff();
-            baseLocation.setLoadNumber(0);
-            baseLocation.setDropoff(new GeoLocation());
-            baseLocation.setPickup(new GeoLocation());
-            locations.add(baseLocation);
-
-            while (line != null) {
-                // read next line
-                line = reader.readLine();
-
-                if(line != null) {
-                    PickupDropoff location = convertLine(line);
-                    locations.add(location);
-                    log.info("location=" + location);
-                }
-            }
-
-            reader.close();
-        } catch (IOException e) {
-            throw new RuntimeException("Error reading file", e);
-        }
-        return locations;
-    }
-
-    private PickupDropoff convertLine(String line) {
-        try {
-            //assuming delimted by whitespace here
-            String[] split = line.split("\\s+");
-            PickupDropoff loc = new PickupDropoff();
-            Integer loadNum = Integer.parseInt(split[0]);
-            loc.setLoadNumber(loadNum);
-
-            GeoLocation pickup = convertGeo(split[1]);
-            GeoLocation dropoff = convertGeo(split[2]);
-            loc.setPickup(pickup);
-            loc.setDropoff(dropoff);
-
-            return loc;
-        } catch (RuntimeException e) {
-            //for easy debugging on line failures...
-            throw new RuntimeException("Could not convert line="+line, e);
-        }
-    }
-
-    private GeoLocation convertGeo(String s) {
-        GeoLocation geo = new GeoLocation();
-        String substring = s.substring(1, s.length() - 1);
-        String[] split = substring.split(",");
-        double lat = Double.parseDouble(split[0]);
-        geo.setLatitude(lat);
-        double longitude = Double.parseDouble(split[1]);
-        geo.setLongitude(longitude);
-        return geo;
-    }
 }

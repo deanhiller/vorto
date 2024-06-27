@@ -8,6 +8,10 @@ public class MyMatrix<T> {
         this.array = array;
     }
 
+    public T get(int n, int m) {
+        return array[n][m];
+    }
+
     public void set(int n, int m, T value) {
         array[n][m] = value;
     }
@@ -15,15 +19,27 @@ public class MyMatrix<T> {
     @Override
     public String toString() {
 
-        String multiLine = "";
+        int columnWidth = 4;
+
+        StringBuilder sb = new StringBuilder();
         for(int n = 0; n < array.length; n++) {
             for(int m = 0; m < array[n].length; m++) {
-                multiLine += " "+array[n][m];
+                if(array[n][m] instanceof Double) {
+                    Long elem = ((Double)array[n][m]).longValue();
+                    sb.append(String.format("%" + columnWidth + "d ", elem));
+                } else {
+                    sb.append(String.format("%" + columnWidth + "d ", array[n][m]));
+                }
             }
 
-            multiLine += "\n";
+            sb.append("\n");
         }
-        return multiLine;
+        return sb.toString();
+    }
+
+
+    public int length() {
+        return array.length;
     }
 
 
