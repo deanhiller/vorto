@@ -1,5 +1,8 @@
 #!/bin/bash
 
+#remove the log file I use for debugging when the python runs
+rm ~/server.log
+
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd $DIR/../routingCars
 

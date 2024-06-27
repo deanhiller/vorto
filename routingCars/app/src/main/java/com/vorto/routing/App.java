@@ -3,12 +3,22 @@
  */
 package com.vorto.routing;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
 public class App {
+    private static final Logger log = LoggerFactory.getLogger(App.class.getName());
     public String getGreeting() {
         return "Hello World!";
     }
 
     public static void main(String[] args) {
-        System.out.println(new App().getGreeting());
+        List<String> list = Arrays.asList(args);
+        log.info("list="+list);
+        System.out.println("something");
     }
 }
