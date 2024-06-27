@@ -10,6 +10,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 
+import static jdk.dynalink.linker.support.CompositeTypeBasedGuardingDynamicLinker.optimize;
+
 public class App {
     private static final Logger log = LoggerFactory.getLogger(App.class.getName());
 
@@ -41,7 +43,17 @@ public class App {
         //for now, brute force different number of driver calculations HOWEVER
         //do this in multiple threads/servers so they come back with an answer at the same time
         Solution routes = calculateBest.routes(distances);
+
+        int optimizationLevel = 3; // speed - optimization trade-off
+        optimizeRoutes(routes, optimizationLevel);
+
         outputSolution(routes);
+    }
+
+    // a good python example in the 2nd half of the article is found here...
+    //https://medium.com/@writingforara/solving-vehicle-routing-problems-with-python-heuristics-algorithm-2cc57fe7079c
+    private void optimizeRoutes(Solution routes, int optimizationLevel) {
+        //modify the routes here in place...
     }
 
     private void outputSolution(Solution solution) {
@@ -105,6 +117,8 @@ public class App {
         //      distance of the actual route pickup to dropoff for location 1
 
         MyMatrix<Double> myMatrix = new MyMatrix<>(new Double[locations.size()][locations.size()]);
+
+        //NOTES: after having a first version wor
 
         for(int n = 0; n < locations.size(); n++) {
             //since we are a square, we can access all locations a bit fast by not reading the entire
